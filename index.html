@@ -1,0 +1,188 @@
+<html>
+    <title>Ray</title>
+    <body align="center">
+        <h2>Ray Casting in 3D by Dvir Akerman</h2>
+        <script src="./Ray.js"></script>
+        <script src="./Wall.js"></script>
+        <script src="./Point.js"></script>
+        <canvas width="700" height="750" id="can" style="border: 1px black solid"></canvas>
+        <canvas width="700" height="750" id="3d" style="border: 1px black solid"></canvas>
+        <br/><lable><input type="checkbox" checked="true" onchange="show2D(this.checked)">Show 2D</lable>
+        <script> 
+            let c = document.getElementById("can");
+            let cx = c.getContext("2d");
+
+            let c2 = document.getElementById("3d");
+            let cx2 = c2.getContext("2d");
+
+            let w = c.width;
+            let h = c.height;
+
+            let walls = [];
+
+            walls.push(new Wall(0,0,w,0)); // top
+            walls.push(new Wall(0,0,0,h)); // left
+            walls.push(new Wall(w,0,w,h)); // right
+            walls.push(new Wall(w,h,0,h)); // down
+
+            let duringClick = false;
+            let startPos = {x:0, y:0}; 
+
+            let point = new Point(w/2,h/2,60,250)
+
+            let keyStates = {w:false,a:false,s:false,d:false,z:false,x:false};
+            let keyNums = { a: 65, w: 87, d: 68, s: 83 , z: 90, x: 88};
+
+            let stripW = w/point.detail;
+            function draw(){
+                cx.fillRect(0,0,w,h);
+                cx2.fillStyle = "#000000";
+                cx2.fillRect(0,0,w,h);
+                for (let i = 0; i < point.rays.length; i++){
+                    let ray = point.rays[i];
+                    let cast = ray.look(walls);
+                    if (cast == false || cast == null){
+                        drawLine(ray.x,ray.y,ray.x+ray.dirx*10,ray.y+ray.diry*10);
+                    }  else {
+                        //2d
+                        drawLine(ray.x,ray.y,cast.x,cast.y);
+
+                        //3d
+                        let d = ray.dist(cast);
+                        let a = (ray.ang - (point.ang + point.fov/2)) * Math.PI / 180;
+                        d *= Math.cos(a)
+
+                        let brightness = map(d,0,500,255,0);
+                        if (brightness < 0) brightness = 0;
+                        cx2.fillStyle = "rgb(" + brightness + "," + brightness + "," + brightness + ")";
+                        let hight = map(d,0,500,h,h/2);
+
+
+                        //For No Fish Eye
+                        // let curAng = ((i*(point.fov/point.detail)) - point.fov/2) * Math.PI/180;
+                        // let nextAng =  (((i+1)*(point.fov/point.detail)) - point.fov/2) * Math.PI/180;
+                        // stripW = Math.tan(nextAng) - Math.tan(curAng);
+                        // let coef = w/(2*Math.tan((point.fov/2)*Math.PI/180));
+                        // stripW = stripW * coef;
+                        // cx2.fillRect(Math.tan(curAng)*coef + w/2,(h-hight)/2,stripW,hight);
+
+                        //For Fish Eye
+                        cx2.fillRect(i*stripW,(h-hight)/2,stripW,hight);
+                        
+                    }
+                }
+                for (let wall of walls){
+                    drawLine(wall.x1,wall.y1,wall.x2,wall.y2);
+                }
+
+                handleKeys(1.75);
+            }
+            let interval = setInterval(draw,10);
+
+            function drawLine(x1,y1,x2,y2){
+                cx.strokeStyle = "#FFFFFF";
+                cx.beginPath();
+                cx.moveTo(x1,y1);
+                cx.lineTo(x2,y2);
+                cx.stroke();
+                cx.strokeStyle = "#000000";
+            }
+
+            document.addEventListener('keydown', logKeyDown);
+            document.addEventListener('keyup', logKeyUp);
+            c.addEventListener('click', logmouseclick)
+
+            function logKeyDown(e) {
+                // console.log(e.keyCode);
+                if (e.keyCode == keyNums.w){ // w
+                    console.log(keyStates);
+                    keyStates.w = true;
+                }
+                if (e.keyCode == keyNums.s){ // s
+                    keyStates.s = true;
+                }
+                if (e.keyCode == keyNums.d){ // d
+                    keyStates.d = true;
+                }
+                if (e.keyCode == keyNums.a){ // a
+                    keyStates.a = true;
+                }
+                if (e.keyCode == keyNums.z){ // z
+                    keyStates.z = true;
+                }
+                if (e.keyCode == keyNums.x){ // x
+                    keyStates.x = true;
+                }
+            }
+            function logKeyUp(e) {
+                // console.log(e.keyCode);
+                if (e.keyCode == keyNums.w){ // w
+                    keyStates.w = false;
+                }
+                if (e.keyCode == keyNums.s){ // s
+                    keyStates.s = false;
+                }
+                if (e.keyCode == keyNums.d){ // d
+                    keyStates.d = false;
+                }
+                if (e.keyCode == keyNums.a){ // a
+                    keyStates.a = false;
+                }
+                if (e.keyCode == keyNums.z){ // z
+                    keyStates.z = false;
+                }
+                if (e.keyCode == keyNums.x){ // x
+                    keyStates.x = false;
+                }
+            }
+            function handleKeys(power){
+                
+                if (keyStates.w){
+                    point.move(0,power);
+                }
+                if (keyStates.a){
+                    point.move(-power,0);
+                }
+                if (keyStates.s){
+                    point.move(0,-power);
+                }
+                if (keyStates.d){
+                    point.move(power,0);
+                }
+                if (keyStates.z){
+                    point.turn(-2.5);
+                }
+                if (keyStates.x){
+                    point.turn(2.5);
+                }
+            }
+            function map (n, start1, stop1, start2, stop2) {
+                return ((n-start1)/(stop1-start1))*(stop2-start2)+start2;
+            };
+            function logmouseclick(e){
+                m = getMousePos(c,e);
+                if (!duringClick){
+                    startPos = m;
+                    duringClick = true;
+                } else {
+                    walls.push(new Wall(startPos.x,startPos.y,m.x,m.y));
+                    duringClick = false;
+                }
+            }
+            function getMousePos(canvas, evt) {
+                var rect = canvas.getBoundingClientRect();
+                return {
+                    x: evt.clientX - rect.left,
+                    y: evt.clientY - rect.top
+                };
+            }
+            function show2D(isclicked){
+                if (isclicked){
+                    c.style = "display:inline;";
+                } else {
+                    c.style = "display:none;";
+                }
+            }
+       </script>
+    </body>
+</html>
